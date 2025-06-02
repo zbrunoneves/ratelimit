@@ -1,0 +1,3 @@
+.PHONY: test
+test:
+	@GOEXPERIMENT=synctest go test ./...
