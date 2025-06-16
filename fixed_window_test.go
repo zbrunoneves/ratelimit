@@ -1,13 +1,12 @@
 package ratelimit
 
 import (
-	"sync"
 	"testing"
 	"testing/synctest"
 	"time"
 )
 
-func Test_fixedWindow_allow(t *testing.T) {
+func Test_FixedWindow(t *testing.T) {
 	synctest.Run(func() {
 		limit := 2
 		duration := time.Second
@@ -57,16 +56,14 @@ func Test_fixedWindow_allow(t *testing.T) {
 	})
 }
 
-func Test_fixedWindow_allow_concurrency(t *testing.T) {
+func Test_FixedWindow_Concurrency(t *testing.T) {
 	synctest.Run(func() {
 		limit := 200
 		duration := time.Minute
 		key := "my-key"
 
 		fw := newFixedWindow(limit, duration)
-		wg := &sync.WaitGroup{}
 
-		wg.Add(limit)
 		want := true
 		for range limit {
 			go func() {
@@ -74,12 +71,11 @@ func Test_fixedWindow_allow_concurrency(t *testing.T) {
 				if got != want {
 					t.Errorf("allow() = %v, want %v", got, want)
 				}
-				wg.Done()
 			}()
 		}
-		wg.Wait()
 
-		wg.Add(limit)
+		synctest.Wait()
+
 		want = false
 		for range limit {
 			go func() {
@@ -90,14 +86,12 @@ func Test_fixedWindow_allow_concurrency(t *testing.T) {
 				if remaining != duration {
 					t.Errorf("allow() = %v, want %v", remaining, duration)
 				}
-				wg.Done()
 			}()
 		}
-		wg.Wait()
 
+		synctest.Wait()
 		time.Sleep(2 * time.Minute)
 
-		wg.Add(limit)
 		want = true
 		for range limit {
 			go func() {
@@ -105,10 +99,10 @@ func Test_fixedWindow_allow_concurrency(t *testing.T) {
 				if got != want {
 					t.Errorf("allow() = %v, want %v", got, want)
 				}
-				wg.Done()
 			}()
 		}
-		wg.Wait()
+
+		synctest.Wait()
 
 		want = false
 		for range limit {

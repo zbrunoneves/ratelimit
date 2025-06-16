@@ -9,8 +9,6 @@ import (
 const (
 	AlgorithmFixedWindow   = "fixed-window"
 	AlgorithmSlidingWindow = "sliding-window"
-
-	maxDuration = 1<<63 - 1
 )
 
 type limiter interface {
@@ -18,7 +16,7 @@ type limiter interface {
 }
 
 type RateLimiter struct {
-	keyFunc func(r *http.Request) (string, error)
+	keyFunc func(r *http.Request) string
 	limiter limiter
 }
 
@@ -31,7 +29,7 @@ func New(limit int, window time.Duration, algorithm string, opts ...Option) (*Ra
 	case AlgorithmSlidingWindow:
 		l = newSlidingWindow(limit, window)
 	default:
-		return nil, errors.New("unknown algorithm: " + algorithm)
+		return nil, errors.New("rate limit: unknown algorithm " + algorithm)
 	}
 
 	rl := &RateLimiter{
@@ -47,11 +45,7 @@ func New(limit int, window time.Duration, algorithm string, opts ...Option) (*Ra
 }
 
 func (rl RateLimiter) Allow(r *http.Request) (bool, time.Duration) {
-	key, err := rl.keyFunc(r)
-	if err != nil {
-		// should log error
-		return false, maxDuration
-	}
+	key := rl.keyFunc(r)
 
 	return rl.limiter.allow(key)
 }
