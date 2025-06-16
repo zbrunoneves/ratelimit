@@ -8,7 +8,7 @@ import (
 
 func Test_FixedWindow(t *testing.T) {
 	synctest.Run(func() {
-		limit := 2
+		limit := 52
 		duration := time.Second
 		key := "my-key"
 
@@ -58,7 +58,7 @@ func Test_FixedWindow(t *testing.T) {
 
 func Test_FixedWindow_Concurrency(t *testing.T) {
 	synctest.Run(func() {
-		limit := 200
+		limit := 203
 		duration := time.Minute
 		key := "my-key"
 
@@ -115,6 +115,71 @@ func Test_FixedWindow_Concurrency(t *testing.T) {
 					t.Errorf("allow() = %v, want %v", remaining, duration)
 				}
 			}()
+		}
+	})
+}
+
+func Test_FixedWindow_MultipleKeys(t *testing.T) {
+	synctest.Run(func() {
+		limit := 52
+		duration := time.Second
+		keys := []string{"key1", "key2", "key3"}
+
+		fw := newFixedWindow(limit, duration)
+
+		for range limit {
+			for i := 0; i < len(keys); i++ {
+				ok, _ := fw.allow(keys[i])
+				if !ok {
+					t.Error("allow() = false, want true")
+				}
+			}
+		}
+
+		for i := 0; i < len(keys); i++ {
+			ok, _ := fw.allow(keys[i])
+			if ok {
+				t.Error("allow() = true, want false")
+			}
+		}
+
+		time.Sleep(2 * time.Second)
+
+		for i := 0; i < len(keys); i++ {
+			ok, _ := fw.allow(keys[i])
+			if !ok {
+				t.Error("allow() = false, want true")
+			}
+		}
+	})
+}
+
+func Test_FixedWindow_TimeRemaining(t *testing.T) {
+	synctest.Run(func() {
+		limit := 2
+		duration := time.Hour
+		key := "my-key"
+
+		fw := newFixedWindow(limit, duration)
+
+		for range limit {
+			ok, _ := fw.allow(key)
+			if !ok {
+				t.Error("allow() = false, want true")
+			}
+		}
+
+		time.Sleep(59 * time.Minute)
+
+		want := time.Minute
+
+		ok, remain := fw.allow(key)
+		if ok {
+			t.Error("allow() = true, want false")
+		}
+
+		if remain != want {
+			t.Errorf("allow() time remaining = %v, want %v", remain, want)
 		}
 	})
 }
